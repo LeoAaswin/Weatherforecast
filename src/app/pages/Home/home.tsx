@@ -12,7 +12,7 @@ const Home = () => {
 
   useEffect(() => {
     const date = new Date();
-    setCurrentDate(date.toString().slice(4, 15));
+    setCurrentDate(date.toString().slice(0, 15));
   }, []);
 
   const getData = async (e: React.FormEvent) => {
