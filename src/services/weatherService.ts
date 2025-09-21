@@ -93,21 +93,102 @@ class WeatherService {
         return;
       }
 
-      // Try to get location with a more permissive approach
-      const options: PositionOptions = {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 300000, // 5 minutes
-      };
+      // Check permission state first
+      if ('permissions' in navigator) {
+        navigator.permissions.query({ name: 'geolocation' as PermissionName }).then((result) => {
+          console.log('📍 Permission state:', result.state);
+          
+          if (result.state === 'denied') {
+            reject(new Error('Location access is blocked. Please enable location access in your browser settings or search for a city instead.'));
+            return;
+          }
+          
+          // If permission is granted, proceed immediately
+          if (result.state === 'granted') {
+            this.requestLocation(resolve, reject);
+            return;
+          }
+          
+          // If permission is prompt, wait a moment for user to respond
+          if (result.state === 'prompt') {
+            console.log('📍 Permission prompt detected, waiting for user response...');
+            // Listen for permission changes
+            result.addEventListener('change', () => {
+              console.log('📍 Permission state changed to:', result.state);
+              if (result.state === 'granted') {
+                this.requestLocation(resolve, reject);
+              } else if (result.state === 'denied') {
+                reject(new Error('Location access denied. Please allow location access or search for a city instead.'));
+              }
+            });
+            
+            // Also try to request location directly (some browsers don't fire change events)
+            setTimeout(() => {
+              this.requestLocation(resolve, reject);
+            }, 1000);
+            return;
+          }
+          
+          // Fallback: try to request location
+          this.requestLocation(resolve, reject);
+        }).catch((error) => {
+          console.log('📍 Permissions API error:', error);
+          // If permissions API fails, proceed with location request
+          this.requestLocation(resolve, reject);
+        });
+      } else {
+        // If permissions API is not supported, proceed with location request
+        this.requestLocation(resolve, reject);
+      }
+    });
+  }
 
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
+  private requestLocation(resolve: (value: { lat: number; lon: number }) => void, reject: (reason?: any) => void) {
+    const options: PositionOptions = {
+      enableHighAccuracy: true,
+      timeout: 20000, // Increased timeout to 20 seconds
+      maximumAge: 300000, // 5 minutes
+    };
+
+    let hasResolved = false;
+    let timeoutId: NodeJS.Timeout;
+
+    // Set a timeout to prevent hanging
+    timeoutId = setTimeout(() => {
+      if (!hasResolved) {
+        hasResolved = true;
+        console.log('⏰ Geolocation request timed out');
+        reject(new Error('Location request timed out. Please try again or search for a city instead.'));
+      }
+    }, 25000); // 25 second total timeout
+
+    console.log('🌍 Requesting location with options:', options);
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        if (!hasResolved) {
+          hasResolved = true;
+          clearTimeout(timeoutId);
+          console.log('✅ Location obtained successfully:', {
+            lat: position.coords.latitude,
+            lon: position.coords.longitude,
+            accuracy: position.coords.accuracy
+          });
           resolve({
             lat: position.coords.latitude,
             lon: position.coords.longitude,
           });
-        },
-        (error) => {
+        }
+      },
+      (error) => {
+        if (!hasResolved) {
+          hasResolved = true;
+          clearTimeout(timeoutId);
+          console.log('❌ Geolocation error:', {
+            code: error.code,
+            message: error.message
+          });
+          
           let message = 'Unable to retrieve your location';
           switch (error.code) {
             case error.PERMISSION_DENIED:
@@ -124,10 +205,10 @@ class WeatherService {
               break;
           }
           reject(new Error(message));
-        },
-        options
-      );
-    });
+        }
+      },
+      options
+    );
   }
 }
 

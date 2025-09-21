@@ -36,7 +36,6 @@ const SearchForm: React.FC<SearchFormProps> = ({
   const handleLocationClick = () => {
     onLocationSearch();
     onClearError();
-    toast.loading('Getting your location...', { id: 'location' });
   };
 
   const handleClearInput = () => {
