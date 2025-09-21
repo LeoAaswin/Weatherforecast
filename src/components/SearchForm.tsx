@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { FiSearch, FiMapPin, FiX } from 'react-icons/fi';
-import { toast } from 'react-hot-toast';
-import styles from './SearchForm.module.scss';
+import React, { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { FiSearch, FiMapPin, FiX } from "react-icons/fi";
+import { toast } from "react-hot-toast";
+import styles from "./SearchForm.module.scss";
 
 interface SearchFormProps {
   onSearch: (city: string) => void;
@@ -19,7 +19,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
   error,
   onClearError,
 }) => {
-  const [inputValue, setInputValue] = useState('');
+  const [inputValue, setInputValue] = useState("");
   const [isFocused, setIsFocused] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -29,7 +29,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
       onClearError();
       toast.success(`Searching for weather in ${inputValue.trim()}`);
     } else {
-      toast.error('Please enter a city name');
+      toast.error("Please enter a city name");
     }
   };
 
@@ -39,26 +39,26 @@ const SearchForm: React.FC<SearchFormProps> = ({
   };
 
   const handleClearInput = () => {
-    setInputValue('');
+    setInputValue("");
     onClearError();
   };
 
   return (
-    <motion.div 
+    <motion.div
       className={styles.searchContainer}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, ease: "easeOut" }}
     >
-      <motion.form 
-        onSubmit={handleSubmit} 
+      <motion.form
+        onSubmit={handleSubmit}
         className={styles.searchForm}
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ delay: 0.2, duration: 0.5 }}
       >
-        <motion.div 
-          className={`${styles.inputGroup} ${isFocused ? styles.focused : ''}`}
+        <motion.div
+          className={`${styles.inputGroup} ${isFocused ? styles.focused : ""}`}
           whileHover={{ scale: 1.02 }}
           transition={{ type: "spring", stiffness: 300 }}
         >
@@ -126,9 +126,9 @@ const SearchForm: React.FC<SearchFormProps> = ({
             </AnimatePresence>
           </motion.button>
         </motion.div>
-        
-        <motion.p 
-          id="search-help" 
+
+        <motion.p
+          id="search-help"
           className={styles.helpText}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -136,18 +136,20 @@ const SearchForm: React.FC<SearchFormProps> = ({
         >
           Enter a city name to get current weather information
         </motion.p>
-        
-        <motion.p 
-          className={styles.locationHelp}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5, duration: 0.5 }}
-        >
-          💡 Location access requires HTTPS or localhost. If location doesn&apos;t work, try searching for a city instead.
-        </motion.p>
+        {process.env.NODE_ENV === "development" && (
+          <motion.p
+            className={styles.locationHelp}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5, duration: 0.5 }}
+          >
+            💡 Location access requires HTTPS or localhost. If location
+            doesn&apos;t work, try searching for a city instead.
+          </motion.p>
+        )}
       </motion.form>
 
-      <motion.div 
+      <motion.div
         className={styles.divider}
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -167,15 +169,19 @@ const SearchForm: React.FC<SearchFormProps> = ({
         transition={{ delay: 0.4, duration: 0.5 }}
         aria-label="Get weather for current location"
       >
-        <motion.span 
+        <motion.span
           className={styles.locationIcon}
-          animate={{ 
+          animate={{
             rotate: isLoading ? 360 : 0,
-            scale: isLoading ? 1.1 : 1 
+            scale: isLoading ? 1.1 : 1,
           }}
-          transition={{ 
-            rotate: { duration: 1, repeat: isLoading ? Infinity : 0, ease: "linear" },
-            scale: { duration: 0.3 }
+          transition={{
+            rotate: {
+              duration: 1,
+              repeat: isLoading ? Infinity : 0,
+              ease: "linear",
+            },
+            scale: { duration: 0.3 },
           }}
         >
           <FiMapPin />
@@ -185,15 +191,15 @@ const SearchForm: React.FC<SearchFormProps> = ({
 
       <AnimatePresence>
         {error && (
-          <motion.div 
-            className={styles.errorMessage} 
+          <motion.div
+            className={styles.errorMessage}
             role="alert"
             initial={{ opacity: 0, y: 10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
             transition={{ duration: 0.3, ease: "easeOut" }}
           >
-            <motion.span 
+            <motion.span
               className={styles.errorIcon}
               animate={{ rotate: [0, -10, 10, -10, 0] }}
               transition={{ duration: 0.5, repeat: 2 }}
