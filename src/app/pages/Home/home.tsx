@@ -1,104 +1,255 @@
-'use client';
-import './home.scss';
-import { useEffect, useState } from 'react';
+"use client";
+import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  WeatherData,
+  ForecastResponse,
+  TemperatureUnit,
+} from "@/types/weather";
+import { weatherService } from "@/services/weatherService";
+import { debugGeolocation, testGeolocation } from "@/utils/geolocationDebug";
+import SearchForm from "@/components/SearchForm";
+import WeatherCard from "@/components/WeatherCard";
+import WeatherForecast from "@/components/WeatherForecast";
+import LoadingSpinner from "@/components/LoadingSpinner";
+import ErrorMessage from "@/components/ErrorMessage";
+import { toast } from "react-hot-toast";
+import styles from "./home.module.scss";
 
-const Home = () => {
-  const [inputValue, setInputValue] = useState('');
-  const [weatherData, setWeatherData] = useState<any>(null);
-  const [currentDate, setCurrentDate] = useState('');
-  const [city, setCity] = useState('');
-  const [showSection, setShowSection] = useState(false);
-  const [showCity, setShowCity] = useState(false);
+const Home: React.FC = () => {
+  const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
+  const [forecastData, setForecastData] = useState<ForecastResponse | null>(
+    null
+  );
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [temperatureUnit, setTemperatureUnit] =
+    useState<TemperatureUnit>("celsius");
+  const [currentDate, setCurrentDate] = useState("");
 
   useEffect(() => {
     const date = new Date();
-    setCurrentDate(date.toString().slice(0, 15));
+    setCurrentDate(
+      date.toLocaleDateString("en-US", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    );
   }, []);
 
-  const getData = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSearch = async (city: string) => {
+    setIsLoading(true);
+    setError(null);
 
-    if (!inputValue) {
-      alert('Please Enter a city name');
-      return;
-    } else {
-      const res = await fetch(
-        `https://api.openweathermap.org/data/2.5/weather?q=${inputValue}&appid=ca695dcbc66c5fa3d0cb955033fd918f`
-      );
-      const data = await res.json();
-      displayWeather(data);
-      setShowCity(true);
+    try {
+      const [weather, forecast] = await Promise.all([
+        weatherService.getCurrentWeatherByCity(city),
+        weatherService.getForecastByCity(city),
+      ]);
+
+      setWeatherData(weather);
+      setForecastData(forecast);
+      toast.success(`Weather data loaded for ${city}`);
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to fetch weather data";
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const getLocationData = () => {
-    if (!navigator.geolocation) {
-      alert('geolocation is not supported!');
-      return;
-    } else {
-      navigator.geolocation.getCurrentPosition(async (position) => {
-        const res = await fetch(
-          `https://api.openweathermap.org/data/2.5/weather?lat=${position.coords.latitude}&lon=${position.coords.longitude}&appid=ca695dcbc66c5fa3d0cb955033fd918f`
+  const handleLocationSearch = async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Debug geolocation capabilities
+      const debugInfo = debugGeolocation();
+      console.log("🔍 Starting location search with debug info:", debugInfo);
+
+      // Check if we're in a secure context first
+      if (!window.isSecureContext && window.location.protocol !== "https:") {
+        throw new Error(
+          "Location access requires HTTPS. Please search for a city instead."
         );
-        const data = await res.json();
-        displayWeather(data);
-        setShowCity(true);
-      });
+      }
+
+      const { lat, lon } = await weatherService.getCurrentLocation();
+      const [weather, forecast] = await Promise.all([
+        weatherService.getCurrentWeatherByCoords(lat, lon),
+        weatherService.getForecastByCoords(lat, lon),
+      ]);
+
+      setWeatherData(weather);
+      setForecastData(forecast);
+      toast.success(`Weather data loaded for your location`);
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : "Failed to get location or fetch weather data";
+      setError(errorMessage);
+      toast.error(errorMessage);
+
+      // If it's a permission error, suggest trying HTTPS
+      if (errorMessage.includes("blocked") || errorMessage.includes("denied")) {
+        console.warn(
+          "Geolocation blocked. This might be due to browser security settings or HTTP vs HTTPS."
+        );
+        console.log(
+          "💡 Try running the app on HTTPS or localhost for geolocation to work."
+        );
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const displayWeather = (data: any) => {
-    const temp = (data.main.temp - 273.15).toFixed(1);
+  const handleUnitChange = (unit: TemperatureUnit) => {
+    setTemperatureUnit(unit);
+  };
 
-    setWeatherData({
-      temp,
-      humidity: data.main.humidity,
-      feelsLike: (data.main.feels_like - 273.15).toFixed(1),
-      description: data.weather[0].description,
-      icon: data.weather[0].icon,
-    });
+  const handleClearError = () => {
+    setError(null);
+  };
 
-    setCity(data.name);
-    setShowSection(true);
+  const handleRetry = () => {
+    if (weatherData) {
+      handleSearch(weatherData.city);
+    }
   };
 
   return (
-    <div className="container">
-      <header className="header">
-        <h5>Weather Information</h5>
-        <p id="date">{currentDate}</p>
-      </header>
-      <form onSubmit={getData} className="form">
-        <input
-          id="search-input"
-          type="text"
-          placeholder='Enter your Location'
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          className="input"
-        />
-        <button type="submit" className="button">Search</button>
-      </form>
-      <button id="loc-btn" onClick={getLocationData} className="loc-btn">
-        Use Current Location
-      </button>
-      <section style={{ display: showSection ? 'block' : 'none' }} className="section test">
-        <h2 id="city">{city}</h2>
-        {weatherData && (
-          <>
-            <p id="temperature-degree">Current Temperature:{weatherData.temp}°C</p>
-            <p id="humidity-degree">Humidity:{weatherData.humidity} %</p>
-            <p id="feelslike-degree">It feels like:{weatherData.feelsLike} °C</p>
-            <p id="description-text">{weatherData.description}</p>
-            <img
-              id="description-img"
-              src={`http://openweathermap.org/img/wn/${weatherData.icon}.png`}
-              alt="Weather icon"
-            />
-          </>
-        )}
-      </section>
-    </div>
+    <motion.div
+      className={styles.container}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.6 }}
+    >
+      <motion.header
+        className={styles.header}
+        initial={{ opacity: 0, y: -30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, ease: "easeOut" }}
+      >
+        <motion.h1
+          className={styles.title}
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ delay: 0.2, duration: 0.6, ease: "easeOut" }}
+        >
+          Weather Forecast
+        </motion.h1>
+        <motion.p
+          className={styles.date}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4, duration: 0.6, ease: "easeOut" }}
+        >
+          {currentDate}
+        </motion.p>
+      </motion.header>
+
+      <motion.div
+        className={styles.mainContent}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3, duration: 0.6, ease: "easeOut" }}
+      >
+        <motion.div
+          className={styles.searchSection}
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.5, duration: 0.6, ease: "easeOut" }}
+        >
+          <SearchForm
+            onSearch={handleSearch}
+            onLocationSearch={handleLocationSearch}
+            isLoading={isLoading}
+            error={error}
+            onClearError={handleClearError}
+          />
+
+          <AnimatePresence>
+            {isLoading && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ duration: 0.3 }}
+              >
+                <LoadingSpinner
+                  size="large"
+                  message="Fetching weather data..."
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence>
+            {error && !isLoading && (
+              <motion.div
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+              >
+                <ErrorMessage
+                  message={error}
+                  onRetry={handleRetry}
+                  onDismiss={handleClearError}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
+
+        <motion.div
+          className={styles.weatherSection}
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.6, duration: 0.6, ease: "easeOut" }}
+        >
+          <AnimatePresence mode="wait">
+            {weatherData && !isLoading && (
+              <motion.div
+                key="weather-card"
+                initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -20, scale: 0.95 }}
+                transition={{ duration: 0.5, ease: "easeOut" }}
+              >
+                <WeatherCard
+                  weather={weatherData}
+                  unit={temperatureUnit}
+                  onUnitChange={handleUnitChange}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence>
+            {forecastData && !isLoading && weatherData && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ delay: 0.2, duration: 0.6, ease: "easeOut" }}
+              >
+                <WeatherForecast
+                  forecast={forecastData}
+                  unit={temperatureUnit}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
+      </motion.div>
+    </motion.div>
   );
 };
 
