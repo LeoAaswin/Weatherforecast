@@ -7,10 +7,56 @@ import { debugGeolocation, testGeolocation } from '@/utils/geolocationDebug';
 import SearchForm from '@/components/SearchForm';
 import WeatherCard from '@/components/WeatherCard';
 import WeatherForecast from '@/components/WeatherForecast';
+import WeatherBackground from '@/components/WeatherBackground';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import ErrorMessage from '@/components/ErrorMessage';
 import { toast } from 'react-hot-toast';
+import { useWeatherSound, getWeatherSoundType } from '@/utils/useWeatherSound';
 import styles from './home.module.scss';
+
+interface WeatherTheme {
+  gradient: string;
+}
+
+const getWeatherTheme = (conditionId: number): WeatherTheme => {
+  const hour = new Date().getHours();
+
+  if (conditionId >= 200 && conditionId < 300) {
+    return { gradient: 'linear-gradient(135deg, #0d0d1a 0%, #1a1a3e 50%, #243B55 100%)' };
+  }
+  if (conditionId >= 300 && conditionId < 500) {
+    return { gradient: 'linear-gradient(135deg, #1c2f45 0%, #2c5364 50%, #4ca1af 100%)' };
+  }
+  if (conditionId >= 500 && conditionId < 600) {
+    return { gradient: 'linear-gradient(135deg, #1a1f35 0%, #2d3a6b 50%, #4286f4 100%)' };
+  }
+  if (conditionId >= 600 && conditionId < 700) {
+    return { gradient: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #6dd5ed 100%)' };
+  }
+  if (conditionId >= 700 && conditionId < 800) {
+    return { gradient: 'linear-gradient(135deg, #2c3e50 0%, #4b6cb7 100%)' };
+  }
+  if (conditionId === 800) {
+    if (hour >= 5 && hour < 8) {
+      return { gradient: 'linear-gradient(135deg, #c94b4b 0%, #f7941d 50%, #fdc830 100%)' };
+    }
+    if (hour >= 8 && hour < 18) {
+      return { gradient: 'linear-gradient(135deg, #0575E6 0%, #1976D2 50%, #00BCD4 100%)' };
+    }
+    if (hour >= 18 && hour < 21) {
+      return { gradient: 'linear-gradient(135deg, #833ab4 0%, #fd1d1d 50%, #fcb045 100%)' };
+    }
+    return { gradient: 'linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)' };
+  }
+  if (conditionId >= 801 && conditionId <= 804) {
+    return { gradient: 'linear-gradient(135deg, #3a4a5c 0%, #536976 50%, #292E49 100%)' };
+  }
+  return { gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' };
+};
+
+const defaultTheme: WeatherTheme = {
+  gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+};
 
 const Home: React.FC = () => {
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
@@ -19,6 +65,10 @@ const Home: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [temperatureUnit, setTemperatureUnit] = useState<TemperatureUnit>('celsius');
   const [currentDate, setCurrentDate] = useState('');
+  const [theme, setTheme] = useState<WeatherTheme>(defaultTheme);
+  const [soundEnabled, setSoundEnabled] = useState(false);
+
+  useWeatherSound(weatherData?.conditionId ?? null, soundEnabled);
 
   useEffect(() => {
     const date = new Date();
@@ -42,6 +92,7 @@ const Home: React.FC = () => {
       
       setWeatherData(weather);
       setForecastData(forecast);
+      setTheme(getWeatherTheme(weather.conditionId));
       toast.success(`Weather data loaded for ${city}`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch weather data';
@@ -81,6 +132,7 @@ const Home: React.FC = () => {
       
       setWeatherData(weather);
       setForecastData(forecast);
+      setTheme(getWeatherTheme(weather.conditionId));
       toast.success(`Weather data loaded for your location`, { id: 'location' });
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to get location or fetch weather data';
@@ -130,13 +182,19 @@ const Home: React.FC = () => {
   };
 
   return (
-    <motion.div 
+    <motion.div
       className={styles.container}
+      style={{ '--weather-gradient': theme.gradient } as React.CSSProperties}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.6 }}
     >
-      <motion.header 
+      {/* Animated weather background particles */}
+      {weatherData && (
+        <WeatherBackground conditionId={weatherData.conditionId} />
+      )}
+
+      <motion.header
         className={styles.header}
         initial={{ opacity: 0, y: -30 }}
         animate={{ opacity: 1, y: 0 }}
@@ -150,7 +208,7 @@ const Home: React.FC = () => {
         >
           Weather Forecast
         </motion.h1>
-        <motion.p 
+        <motion.p
           className={styles.date}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -158,6 +216,42 @@ const Home: React.FC = () => {
         >
           {currentDate}
         </motion.p>
+
+        {weatherData && (
+          <motion.button
+            className={`${styles.soundToggle} ${soundEnabled ? styles.soundOn : ''}`}
+            onClick={() => setSoundEnabled((v) => !v)}
+            title={soundEnabled ? 'Mute ambient sound' : 'Play ambient sound'}
+            aria-label={soundEnabled ? 'Mute ambient sound' : 'Play ambient sound'}
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.5, duration: 0.4 }}
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.92 }}
+          >
+            {soundEnabled ? (
+              // Speaker with waves
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+              </svg>
+            ) : (
+              // Speaker muted
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                <line x1="23" y1="9" x2="17" y2="15" />
+                <line x1="17" y1="9" x2="23" y2="15" />
+              </svg>
+            )}
+            <span>{soundEnabled ? 'Sound On' : 'Sound Off'}</span>
+            {soundEnabled && weatherData && getWeatherSoundType(weatherData.conditionId) !== 'none' && (
+              <span className={styles.soundBadge}>
+                {getWeatherSoundType(weatherData.conditionId)}
+              </span>
+            )}
+          </motion.button>
+        )}
       </motion.header>
 
       <motion.div 

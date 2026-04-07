@@ -61,6 +61,7 @@ export interface WeatherData {
   feelsLike: string;
   description: string;
   icon: string;
+  conditionId: number;
   city: string;
   country: string;
   windSpeed: number;

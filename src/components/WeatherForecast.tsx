@@ -3,20 +3,47 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ForecastResponse } from '@/types/weather';
 import { getWeatherIconUrl, convertTemperature } from '@/config/weather';
 import { format } from 'date-fns';
-import { 
-  LineChart, 
-  Line, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
+import {
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   ResponsiveContainer,
   AreaChart,
   Area
 } from 'recharts';
-import { FiTrendingUp, FiDroplet, FiWind, FiEye, FiGrid } from 'react-icons/fi';
+import { FiTrendingUp, FiDroplet, FiWind, FiGrid, FiEye } from 'react-icons/fi';
 import styles from './WeatherForecast.module.scss';
 import Image from 'next/image';
+
+interface TempBarProps {
+  min: number;
+  max: number;
+  globalMin: number;
+  globalMax: number;
+}
+
+const TempBar: React.FC<TempBarProps> = ({ min, max, globalMin, globalMax }) => {
+  const range = globalMax - globalMin || 1;
+  const leftPct = ((min - globalMin) / range) * 100;
+  const widthPct = Math.max(((max - min) / range) * 100, 8);
+
+  return (
+    <div className={styles.tempBarWrapper}>
+      <span className={styles.tempBarMin}>{min.toFixed(0)}°</span>
+      <div className={styles.tempBarTrack}>
+        <motion.div
+          className={styles.tempBarFill}
+          style={{ left: `${leftPct}%`, width: `${widthPct}%`, originX: 0 } as React.CSSProperties}
+          initial={{ scaleX: 0 }}
+          animate={{ scaleX: 1 }}
+          transition={{ duration: 0.6, ease: 'easeOut' }}
+        />
+      </div>
+      <span className={styles.tempBarMax}>{max.toFixed(0)}°</span>
+    </div>
+  );
+};
 
 interface WeatherForecastProps {
   forecast: ForecastResponse;
@@ -80,6 +107,17 @@ const WeatherForecast: React.FC<WeatherForecastProps> = ({ forecast, unit }) => 
       max: Math.max(...temps),
     };
   };
+
+  // Global min/max across all displayed days for normalizing the bar
+  const globalTempRange = useMemo(() => {
+    const allTemps = Object.values(groupedForecast)
+      .slice(0, 5)
+      .flatMap(dayItems => dayItems.map(item => item.main.temp));
+    return {
+      min: Math.min(...allTemps),
+      max: Math.max(...allTemps),
+    };
+  }, [groupedForecast]);
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -187,12 +225,19 @@ const WeatherForecast: React.FC<WeatherForecastProps> = ({ forecast, unit }) => 
                   
                   <div className={styles.dayTemps}>
                     <span className={styles.maxTemp}>
-                      {convertTemp(minMax.max)}°{unit === 'celsius' ? 'C' : 'F'}
+                      {convertTemp(minMax.max)}°
                     </span>
                     <span className={styles.minTemp}>
-                      {convertTemp(minMax.min)}°{unit === 'celsius' ? 'C' : 'F'}
+                      {convertTemp(minMax.min)}°
                     </span>
                   </div>
+
+                  <TempBar
+                    min={minMax.min}
+                    max={minMax.max}
+                    globalMin={globalTempRange.min}
+                    globalMax={globalTempRange.max}
+                  />
                   
                   <div className={styles.dayDetails}>
                     <motion.div 

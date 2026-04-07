@@ -1,7 +1,8 @@
 // Modern Weather App Styles
 .container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--weather-gradient, linear-gradient(135deg, #667eea 0%, #764ba2 100%));
+  transition: background 1.8s ease;
   padding: 1rem;
   display: grid;
   grid-template-rows: auto 1fr;
@@ -97,6 +98,47 @@
   display: flex;
   flex-direction: column;
   gap: 2rem;
+}
+
+// Sound toggle button
+.soundToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.9rem;
+  padding: 0.45rem 1rem 0.45rem 0.75rem;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  transition: all 0.25s ease;
+  letter-spacing: 0.3px;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.18);
+    color: white;
+    border-color: rgba(255, 255, 255, 0.35);
+  }
+
+  &.soundOn {
+    background: rgba(255, 255, 255, 0.18);
+    border-color: rgba(255, 255, 255, 0.4);
+    color: white;
+    box-shadow: 0 0 12px rgba(255, 255, 255, 0.15);
+  }
+}
+
+.soundBadge {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+  font-size: 0.72rem;
+  text-transform: capitalize;
+  letter-spacing: 0.4px;
 }
 
 .debugButton {
@@ -211,9 +253,10 @@
 // Dark mode support
 @media (prefers-color-scheme: dark) {
   .container {
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    // Dark mode uses the dynamic gradient; only fallback if no weather loaded
+    background: var(--weather-gradient, linear-gradient(135deg, #1a1a2e 0%, #16213e 100%));
   }
-  
+
   .title {
     background: linear-gradient(135deg, #ffffff 0%, #e0e0e0 100%);
     -webkit-background-clip: text;

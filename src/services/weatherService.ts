@@ -69,6 +69,7 @@ class WeatherService {
       feelsLike: data.main.feels_like.toFixed(1),
       description: data.weather[0].description,
       icon: data.weather[0].icon,
+      conditionId: data.weather[0].id,
       city: data.name,
       country: data.sys.country,
       windSpeed: data.wind.speed,
